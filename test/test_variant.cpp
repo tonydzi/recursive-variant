@@ -2,6 +2,8 @@
 
 #include <map>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #include <rva/variant.hpp>
@@ -41,4 +43,27 @@ TEST_CASE("Test assignment", "[assign]") {
 
     j2 = j1;
     REQUIRE(j1 == j2);
+}
+
+// Regression test for issue #3: a recursive reference inside std::pair (or
+// std::map, which stores pairs) failed to compile on MSVC
+using pair_value = rva::variant<
+    int,
+    std::map<std::string, rva::self_t>,
+    std::vector<std::pair<std::string, rva::self_t>>>;
+
+TEST_CASE("Test swap with std::pair", "[swap]") {
+    // swap must stay noexcept when every alternative is nothrow swappable
+    using list_value = rva::variant<int, std::vector<rva::self_t>>;
+    STATIC_REQUIRE(noexcept(
+        std::declval<list_value&>().swap(std::declval<list_value&>())));
+
+    pair_value v1 = 1;
+    pair_value v2 = std::vector<std::pair<std::string, pair_value>> {
+        {"one", 1},
+        {"two", 2}};
+    v1.swap(v2);
+    REQUIRE(v2 == 1);
+    REQUIRE(std::get<2>(v1).size() == 2);
+    REQUIRE(std::get<2>(v1)[1].second == 2);
 }
