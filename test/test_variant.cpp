@@ -66,4 +66,17 @@ TEST_CASE("Test swap with std::pair", "[swap]") {
     REQUIRE(v2 == 1);
     REQUIRE(std::get<2>(v1).size() == 2);
     REQUIRE(std::get<2>(v1)[1].second == 2);
+
+    // Evaluating the noexcept specification of swap for pair_value is what
+    // used to fail; it must match the trait of the underlying std::variant
+    STATIC_REQUIRE(
+        noexcept(std::declval<pair_value&>().swap(std::declval<pair_value&>()))
+        == std::is_nothrow_swappable_v<pair_value::base_type>);
+
+    pair_value m1 = std::map<std::string, pair_value> {{"a", 1}};
+    pair_value m2 = std::map<std::string, pair_value> {{"b", 2}, {"c", 3}};
+    m1.swap(m2);
+    REQUIRE(std::get<1>(m1).size() == 2);
+    REQUIRE(std::get<1>(m1).at("c") == 3);
+    REQUIRE(std::get<1>(m2).at("a") == 1);
 }
